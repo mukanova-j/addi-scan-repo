@@ -59,4 +59,5 @@ nunit-*.xml
 .claude/
 Claude.md
 /.vs/
-/src/AddiScan.Infrastructure/Migrations
+/AddiScan.Infrastructure/Migrations/AddiScanDbContextModelSnapshot.cs
+/Data

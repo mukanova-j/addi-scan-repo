@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/data/" />
+  <Folder Name="/tests/">
+    <Project Path="tests/AddiScan.Tests/AddiScan.Tests.csproj" />
+  </Folder>
+  <Project Path="AddiScan.Api/AddiScan.Api.csproj" />
+  <Project Path="AddiScan.Core/AddiScan.Core.csproj" />
+  <Project Path="AddiScan.Infrastructure/AddiScan.Infrastructure.csproj" />
+  <Project Path="AddiScan.Web/AddiScan.Web.csproj" />
+</Solution>
