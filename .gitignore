@@ -59,3 +59,4 @@ nunit-*.xml
 .claude/
 Claude.md
 /.vs/
+/src/AddiScan.Infrastructure/Migrations
