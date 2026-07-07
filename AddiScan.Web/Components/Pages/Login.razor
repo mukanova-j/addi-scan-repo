@@ -1,0 +1,53 @@
+@page "/login"
+@rendermode InteractiveServer
+@using AddiScan.Web.Services
+@inject AddiScanApiClient Api
+@inject AuthState AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Login</PageTitle>
+
+<h1>Login</h1>
+
+<EditForm Model="this" OnValidSubmit="SubmitAsync">
+    <div class="mb-3">
+        <label for="email" class="form-label">Email</label>
+        <InputText id="email" class="form-control" @bind-Value="Email" />
+    </div>
+    <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <InputText id="password" type="password" class="form-control" @bind-Value="Password" />
+    </div>
+    <button type="submit" class="btn btn-primary" disabled="@IsSubmitting">Login</button>
+</EditForm>
+
+@if (ErrorMessage is not null)
+{
+    <p class="text-danger mt-3">@ErrorMessage</p>
+}
+
+@code {
+    private string Email { get; set; } = "";
+    private string Password { get; set; } = "";
+    private bool IsSubmitting { get; set; }
+    private string? ErrorMessage { get; set; }
+
+    private async Task SubmitAsync()
+    {
+        IsSubmitting = true;
+        ErrorMessage = null;
+
+        var result = await Api.LoginAsync(Email, Password);
+        if (result.Success && result.Token is not null)
+        {
+            AuthState.SignIn(Email, result.Token);
+            Navigation.NavigateTo("/");
+        }
+        else
+        {
+            ErrorMessage = result.Error ?? "Login failed.";
+        }
+
+        IsSubmitting = false;
+    }
+}
