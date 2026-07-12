@@ -1,0 +1,85 @@
+@page "/additives"
+@rendermode InteractiveServer
+@using AddiScan.Web.Services
+@inject AddiScanApiClient Api
+
+<PageTitle>Additives</PageTitle>
+
+<h1>Additives</h1>
+
+<div class="mb-3">
+    <input class="form-control" placeholder="Filter by name or E-number..." @bind="Filter" @bind:event="oninput" />
+</div>
+
+@if (AllAdditives is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>E-number</th>
+                <th>Name</th>
+                <th>Risk band</th>
+                <th>Score</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var additive in FilteredAllAdditives)
+            {
+                <tr>
+                    <td><a href="@($"additives/{additive.Id}")">@(additive.ENumber ?? "-")</a></td>
+                    <td><a href="@($"additives/{additive.Id}")">@additive.Name</a></td>
+                    <td>
+                        @if (additive.Graded)
+                        {
+                            <span class="badge @RiskBandCssClass(additive.RiskBand)">@RiskBandLabel(additive.RiskBand)</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Not yet graded</span>
+                        }
+                    </td>
+                    <td>@(additive.FinalScore?.ToString("0.0") ?? "-")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<AdditiveSummary>? AllAdditives { get; set; }
+    private string Filter { get; set; } = "";
+
+    private IEnumerable<AdditiveSummary> FilteredAllAdditives =>
+        AllAdditives is null
+            ? []
+            : AllAdditives.Where(a =>
+                string.IsNullOrWhiteSpace(Filter)
+                || a.Name.Contains(Filter, StringComparison.OrdinalIgnoreCase)
+                || (a.ENumber?.Contains(Filter, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    protected override async Task OnInitializedAsync()
+    {
+        AllAdditives = await Api.GetAdditivesAsync();
+    }
+
+    private static string RiskBandCssClass(string? riskBand) => riskBand switch
+    {
+        "Safe" => "bg-success",
+        "LowRisk" => "bg-info text-dark",
+        "Moderate" => "bg-warning text-dark",
+        "HighRisk" => "bg-danger",
+        "Avoid" => "bg-dark",
+        _ => "bg-secondary",
+    };
+
+    private static string RiskBandLabel(string? riskBand) => riskBand switch
+    {
+        "LowRisk" => "Low risk",
+        "HighRisk" => "High risk",
+        _ => riskBand ?? "-",
+    };
+}

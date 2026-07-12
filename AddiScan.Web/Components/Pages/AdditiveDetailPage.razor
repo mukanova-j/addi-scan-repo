@@ -1,0 +1,103 @@
+@page "/additives/{id:int}"
+@rendermode InteractiveServer
+@using AddiScan.Web.Services
+@inject AddiScanApiClient Api
+
+<PageTitle>@(Additive?.Name ?? "Additive")</PageTitle>
+
+@if (!Loaded)
+{
+    <p>Loading...</p>
+}
+else if (Additive is null)
+{
+    <p>Additive not found. <a href="/additives">Back to the additive list.</a></p>
+}
+else
+{
+    <h1>@Additive.Name @(Additive.ENumber is not null ? $"({Additive.ENumber})" : "")</h1>
+    <p><a href="/additives">Back to the additive list</a></p>
+
+    <dl class="row">
+        <dt class="col-sm-3">Purpose</dt>
+        <dd class="col-sm-9">@(Additive.Purpose ?? "-")</dd>
+
+        <dt class="col-sm-3">Found in</dt>
+        <dd class="col-sm-9">@(Additive.FoundIn ?? "-")</dd>
+
+        <dt class="col-sm-3">Source / origin</dt>
+        <dd class="col-sm-9">@(Additive.SourceOrigin ?? "-")</dd>
+
+        <dt class="col-sm-3">Health concerns</dt>
+        <dd class="col-sm-9">@(Additive.HealthConcerns ?? "-")</dd>
+
+        <dt class="col-sm-3">Side effects</dt>
+        <dd class="col-sm-9">@(Additive.SideEffects ?? "-")</dd>
+
+        <dt class="col-sm-3">Banned anywhere</dt>
+        <dd class="col-sm-9">@(Additive.BannedAnywhere ?? "-")</dd>
+
+        <dt class="col-sm-3">Also known as</dt>
+        <dd class="col-sm-9">@(Additive.CommonNamesAndSynonyms.Count > 0 ? string.Join(", ", Additive.CommonNamesAndSynonyms) : "-")</dd>
+
+        <dt class="col-sm-3">Evidence sources</dt>
+        <dd class="col-sm-9">@(Additive.EvidenceSources.Count > 0 ? string.Join(", ", Additive.EvidenceSources) : "-")</dd>
+
+        <dt class="col-sm-3">Last researched</dt>
+        <dd class="col-sm-9">@(Additive.LastResearched?.ToString("yyyy-MM-dd") ?? "-")</dd>
+    </dl>
+
+    <h2>Safety grading</h2>
+
+    @if (Additive.Grading is { Graded: true } grading)
+    {
+        <p>
+            <strong>Final score:</strong> @grading.FinalScore?.ToString("0.0") / 5.0
+            (@grading.RawPoints raw points) &mdash; <strong>@RiskBandLabel(grading.RiskBand)</strong>
+        </p>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Criterion</th>
+                    <th>Score</th>
+                    <th>Note</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Carcinogenicity</td><td>@grading.Carcinogenicity.Score / 4</td><td>@grading.Carcinogenicity.Note</td></tr>
+                <tr><td>Ban status</td><td>@grading.BanStatus.Score / 3</td><td>@grading.BanStatus.Note</td></tr>
+                <tr><td>Allergic / sensitivity reactions</td><td>@grading.AllergicReactions.Score / 2</td><td>@grading.AllergicReactions.Note</td></tr>
+                <tr><td>Cumulative / long-term exposure risk</td><td>@grading.CumulativeRisk.Score / 2</td><td>@grading.CumulativeRisk.Note</td></tr>
+                <tr><td>Origin</td><td>@grading.Origin.Score / 1</td><td>@grading.Origin.Note</td></tr>
+                <tr><td>Children &amp; vulnerable groups</td><td>@grading.ChildrenAndVulnerable.Score / 2</td><td>@grading.ChildrenAndVulnerable.Note</td></tr>
+                <tr><td>Functional necessity</td><td>@grading.FunctionalNecessity.Score (-1..+1)</td><td>@grading.FunctionalNecessity.Note</td></tr>
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>This additive has not been graded yet.</p>
+    }
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private AdditiveDetail? Additive { get; set; }
+    private bool Loaded { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Additive = await Api.GetAdditiveAsync(Id);
+        Loaded = true;
+    }
+
+    private static string RiskBandLabel(string? riskBand) => riskBand switch
+    {
+        "LowRisk" => "Low risk",
+        "HighRisk" => "High risk",
+        _ => riskBand ?? "-",
+    };
+}
