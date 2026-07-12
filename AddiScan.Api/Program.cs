@@ -42,8 +42,9 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<AddiScanDbContext>();
     await dbContext.Database.MigrateAsync();
 
+    // Get dataset path from configuration or use default path
     var datasetPath = app.Configuration["AdditiveDataset:Path"]
-        ?? Path.Combine(builder.Environment.ContentRootPath, "..", "..", "data", "addiscan_additives.json");
+        ?? Path.Combine(builder.Environment.ContentRootPath, "..", "data", "addiscan_additives.json");
     await scope.ServiceProvider.GetRequiredService<AdditiveDataSeeder>().SeedAsync(datasetPath);
 }
 
