@@ -78,7 +78,7 @@ public class AdditiveDataSeeder(AddiScanDbContext dbContext, ILogger<AdditiveDat
             Graded = dto.Graded,
             FinalScore = dto.FinalScore,
             RawPoints = dto.RawPoints,
-            RiskBand = dto.RiskBand is null ? null : Enum.Parse<RiskBand>(dto.RiskBand, ignoreCase: true),
+            RiskBand = dto.RiskBand is null ? null : Enum.Parse<RiskBand>(dto.RiskBand.Replace(" ", ""), ignoreCase: true),
             CarcinogenicityScore = dto.Criteria?.Carcinogenicity?.Score,
             CarcinogenicityNote = dto.Criteria?.Carcinogenicity?.Note,
             BanStatusScore = dto.Criteria?.BanStatus?.Score,

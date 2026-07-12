@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "AddiScan.Api\\AddiScan.Api.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "AddiScan.Web\\AddiScan.Web.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

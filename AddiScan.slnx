@@ -1,5 +1,7 @@
 <Solution>
-  <Folder Name="/data/" />
+  <Folder Name="/data/">
+    <File Path="data/addiscan_additives.json" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AddiScan.Tests/AddiScan.Tests.csproj" />
   </Folder>
