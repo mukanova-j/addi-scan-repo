@@ -61,3 +61,7 @@ Claude.md
 /.vs/
 /AddiScan.Api/appsettings.json
 /data
+/AddiScan.Api/Properties/launchSettings.json
+/AddiScan.Api/addiscan.db
+/AddiScan.Api/addiscan.db-shm
+/AddiScan.Api/addiscan.db-wal
