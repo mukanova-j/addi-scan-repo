@@ -19,8 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\AddiScan.Core\AddiScan.Core.csproj" />
-    <ProjectReference Include="..\..\src\AddiScan.Infrastructure\AddiScan.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\AddiScan.Core\AddiScan.Core.csproj" />
+    <ProjectReference Include="..\..\AddiScan.Infrastructure\AddiScan.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
