@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 
 namespace AddiScan.Web.Services;
 
@@ -9,6 +10,8 @@ public record LoginRequest(string Email, string Password);
 public record AuthResponse(string Token);
 
 public record ApiResult(bool Success, string? Token, string? Error);
+
+public record ScanUploadResponse(bool Accepted, string? Message, string? DetectedFormat);
 
 public record AdditiveSummary(int Id, string? ENumber, string Name, bool Graded, decimal? FinalScore, string? RiskBand);
 
@@ -73,6 +76,30 @@ public class AddiScanApiClient(HttpClient httpClient)
     {
         var response = await httpClient.PostAsJsonAsync("api/auth/login", new LoginRequest(email, password));
         return await ToResultAsync(response);
+    }
+
+    public async Task<ScanUploadResponse> UploadScanImageAsync(Stream fileStream, string fileName, string contentType, CancellationToken cancellationToken = default)
+    {
+        using var content = new MultipartFormDataContent();
+        using var streamContent = new StreamContent(fileStream);
+        streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        content.Add(streamContent, "file", fileName);
+
+        var response = await httpClient.PostAsync("api/scan/upload", content, cancellationToken);
+
+        if (response.StatusCode is HttpStatusCode.TooManyRequests)
+        {
+            return new ScanUploadResponse(false, "Too many upload attempts. Please wait a minute and try again.", null);
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync(cancellationToken);
+            return new ScanUploadResponse(false, string.IsNullOrWhiteSpace(error) ? response.ReasonPhrase : error, null);
+        }
+
+        var body = await response.Content.ReadFromJsonAsync<ScanUploadResponse>(cancellationToken: cancellationToken);
+        return body ?? new ScanUploadResponse(false, "Unexpected empty response from server.", null);
     }
 
     private static async Task<ApiResult> ToResultAsync(HttpResponseMessage response)

@@ -1,7 +1,101 @@
-﻿@page "/"
+@page "/"
+@rendermode InteractiveServer
+@using AddiScan.Web.Services
+@inject AddiScanApiClient Api
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>Scan a label</h1>
 
-Welcome to Addi-scan app.
+<p>Upload a photo of a food label to check it for additives. Accepted formats: JPEG, PNG, WEBP. Max size 10 MB.</p>
+
+<div class="mb-3">
+    <label for="labelImage" class="form-label">Label photo</label>
+    <InputFile id="labelImage" class="form-control" OnChange="OnFileSelected" accept=".jpg,.jpeg,.png,.webp" />
+</div>
+
+<button type="button" class="btn btn-primary" disabled="@(!CanSubmit)" @onclick="SubmitAsync">
+    Upload
+</button>
+
+@if (ErrorMessage is not null)
+{
+    <p class="text-danger mt-3">@ErrorMessage</p>
+}
+
+@if (StatusMessage is not null)
+{
+    <p class="text-success mt-3">@StatusMessage</p>
+}
+
+@code {
+    private const long MaxFileSizeBytes = 10 * 1024 * 1024;
+    private static readonly string[] AllowedContentTypes = ["image/jpeg", "image/png", "image/webp"];
+
+    private IBrowserFile? SelectedFile { get; set; }
+    private bool IsSubmitting { get; set; }
+    private string? ErrorMessage { get; set; }
+    private string? StatusMessage { get; set; }
+
+    private bool CanSubmit => SelectedFile is not null && !IsSubmitting;
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        ErrorMessage = null;
+        StatusMessage = null;
+        SelectedFile = null;
+
+        var file = e.File;
+
+        // Client-side checks are for immediate feedback only. The server re-validates size,
+        // content-type, and magic bytes independently, since a renamed file can spoof these.
+        if (file.Size > MaxFileSizeBytes)
+        {
+            ErrorMessage = "File exceeds the 10 MB limit.";
+            return;
+        }
+
+        if (!AllowedContentTypes.Contains(file.ContentType, StringComparer.OrdinalIgnoreCase))
+        {
+            ErrorMessage = "Only JPEG, PNG, and WEBP images are supported.";
+            return;
+        }
+
+        SelectedFile = file;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (SelectedFile is null)
+        {
+            return;
+        }
+
+        IsSubmitting = true;
+        ErrorMessage = null;
+        StatusMessage = null;
+
+        try
+        {
+            await using var stream = SelectedFile.OpenReadStream(maxAllowedSize: MaxFileSizeBytes);
+            var result = await Api.UploadScanImageAsync(stream, SelectedFile.Name, SelectedFile.ContentType);
+
+            if (result.Accepted)
+            {
+                StatusMessage = $"Upload accepted ({result.DetectedFormat}). OCR processing is not implemented yet.";
+            }
+            else
+            {
+                ErrorMessage = result.Message ?? "Upload was rejected.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Upload failed: {ex.Message}";
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+}
