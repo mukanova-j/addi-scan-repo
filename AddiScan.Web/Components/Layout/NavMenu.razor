@@ -1,4 +1,9 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@rendermode InteractiveServer
+@implements IDisposable
+@using AddiScan.Web.Services
+@inject AuthState AuthState
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">AddiScan.Web</a>
     </div>
@@ -20,17 +25,32 @@
             </NavLink>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="register">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Register
-            </NavLink>
-        </div>
+        @if (!AuthState.IsAuthenticated)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="register">
+                    <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Register
+                </NavLink>
+            </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="login">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Login
-            </NavLink>
-        </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="login">
+                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Login
+                </NavLink>
+            </div>
+        }
     </nav>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        AuthState.Changed += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        AuthState.Changed -= StateHasChanged;
+    }
+}
 

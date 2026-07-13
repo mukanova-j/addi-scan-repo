@@ -1,6 +1,7 @@
 using AddiScan.Api.Contracts;
 using AddiScan.Api.Ocr;
 using AddiScan.Core.Uploads;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -8,13 +9,15 @@ namespace AddiScan.Api.Controllers;
 
 [ApiController]
 [Route("api/scan")]
+[Authorize]
 public class ScanController(ITextExtractionService textExtractionService) : ControllerBase
 {
     private const int SignatureHeaderLength = 12;
 
     /// <summary>
     /// Accepts an uploaded label photo, validates its type and size, then extracts the
-    /// ingredient text with OCR once validation passes.
+    /// ingredient text with OCR once validation passes. 
+    /// Requires an authenticated user.
     /// </summary>
     /// <param name="file"></param>
     /// <param name="cancellationToken"></param>

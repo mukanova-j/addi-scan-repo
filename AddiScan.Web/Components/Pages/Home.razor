@@ -1,39 +1,50 @@
 @page "/"
 @rendermode InteractiveServer
+@implements IDisposable
 @using AddiScan.Web.Services
 @inject AddiScanApiClient Api
+@inject AuthState AuthState
 
 <PageTitle>Home</PageTitle>
 
 <h1>Scan a label</h1>
 
-<p>Upload a photo of a food label to check it for additives. Accepted formats: JPEG, PNG, WEBP. Max size 10 MB.</p>
-
-<div class="mb-3">
-    <label for="labelImage" class="form-label">Label photo</label>
-    <InputFile id="labelImage" class="form-control" OnChange="OnFileSelected" accept=".jpg,.jpeg,.png,.webp" />
-</div>
-
-<button type="button" class="btn btn-primary" disabled="@(!CanSubmit)" @onclick="SubmitAsync">
-    Upload
-</button>
-
-@if (ErrorMessage is not null)
+@if (!AuthState.IsAuthenticated)
 {
-    <p class="text-danger mt-3">@ErrorMessage</p>
+    <p>
+        <a href="login">Log in</a> or <a href="register">create an account</a> to scan a label and extract its ingredient text.
+    </p>
 }
-
-@if (StatusMessage is not null)
+else
 {
-    <p class="text-success mt-3">@StatusMessage</p>
-}
+    <p>Upload a photo of a food label to check it for additives. Accepted formats: JPEG, PNG, WEBP. Max size 10 MB.</p>
 
-@if (ExtractedText is not null)
-{
-    <div class="mt-3">
-        <label for="extractedText" class="form-label">Extracted ingredient text</label>
-        <textarea id="extractedText" class="form-control" rows="8" readonly>@ExtractedText</textarea>
+    <div class="mb-3">
+        <label for="labelImage" class="form-label">Label photo</label>
+        <InputFile id="labelImage" class="form-control" OnChange="OnFileSelected" accept=".jpg,.jpeg,.png,.webp" />
     </div>
+
+    <button type="button" class="btn btn-primary" disabled="@(!CanSubmit)" @onclick="SubmitAsync">
+        Upload
+    </button>
+
+    @if (ErrorMessage is not null)
+    {
+        <p class="text-danger mt-3">@ErrorMessage</p>
+    }
+
+    @if (StatusMessage is not null)
+    {
+        <p class="text-success mt-3">@StatusMessage</p>
+    }
+
+    @if (ExtractedText is not null)
+    {
+        <div class="mt-3">
+            <label for="extractedText" class="form-label">Extracted ingredient text</label>
+            <textarea id="extractedText" class="form-control" rows="8" readonly>@ExtractedText</textarea>
+        </div>
+    }
 }
 
 @code {
@@ -47,6 +58,16 @@
     private string? ExtractedText { get; set; }
 
     private bool CanSubmit => SelectedFile is not null && !IsSubmitting;
+
+    protected override void OnInitialized()
+    {
+        AuthState.Changed += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        AuthState.Changed -= StateHasChanged;
+    }
 
     private void OnFileSelected(InputFileChangeEventArgs e)
     {

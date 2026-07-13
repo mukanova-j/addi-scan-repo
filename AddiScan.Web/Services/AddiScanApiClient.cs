@@ -47,7 +47,7 @@ public record AdditiveDetail(
     DateOnly? LastResearched,
     SafetyGradingDetail? Grading);
 
-public class AddiScanApiClient(HttpClient httpClient)
+public class AddiScanApiClient(HttpClient httpClient, AuthState authState)
 {
     public async Task<List<AdditiveSummary>> GetAdditivesAsync()
     {
@@ -85,11 +85,22 @@ public class AddiScanApiClient(HttpClient httpClient)
         streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
         content.Add(streamContent, "file", fileName);
 
-        var response = await httpClient.PostAsync("api/scan/upload", content, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "api/scan/upload") { Content = content };
+        if (authState.Token is not null)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authState.Token);
+        }
+
+        var response = await httpClient.SendAsync(request, cancellationToken);
 
         if (response.StatusCode is HttpStatusCode.TooManyRequests)
         {
             return new ScanUploadResponse(false, "Too many upload attempts. Please wait a minute and try again.", null, null);
+        }
+
+        if (response.StatusCode is HttpStatusCode.Unauthorized)
+        {
+            return new ScanUploadResponse(false, "You must be logged in to scan a label.", null, null);
         }
 
         if (!response.IsSuccessStatusCode)

@@ -1,0 +1,28 @@
+@rendermode InteractiveServer
+@implements IDisposable
+@using AddiScan.Web.Services
+@inject AuthState AuthState
+@inject NavigationManager Navigation
+
+@if (AuthState.IsAuthenticated)
+{
+    <button type="button" class="btn btn-link" @onclick="Logout">Logout</button>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        AuthState.Changed += StateHasChanged;
+    }
+
+    private void Logout()
+    {
+        AuthState.SignOut();
+        Navigation.NavigateTo("/");
+    }
+
+    public void Dispose()
+    {
+        AuthState.Changed -= StateHasChanged;
+    }
+}
