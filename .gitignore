@@ -59,5 +59,10 @@ nunit-*.xml
 .claude/
 Claude.md
 /.vs/
-/AddiScan.Infrastructure/Migrations/AddiScanDbContextModelSnapshot.cs
-/Data
+/AddiScan.Api/appsettings.json
+/data
+/AddiScan.Api/Properties/launchSettings.json
+/AddiScan.Api/addiscan.db
+/AddiScan.Api/addiscan.db-shm
+/AddiScan.Api/addiscan.db-wal
+/AddiScan.Api/tessdata/eng.traineddata

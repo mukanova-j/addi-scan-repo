@@ -13,11 +13,17 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Tesseract" Version="5.2.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AddiScan.Core\AddiScan.Core.csproj" />
     <ProjectReference Include="..\AddiScan.Infrastructure\AddiScan.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Tesseract language model consulted by TesseractTextExtractionService at OCR time. -->
+    <None Include="tessdata\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

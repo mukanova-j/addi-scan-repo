@@ -8,15 +8,19 @@ public class AuthState
 
     public bool IsAuthenticated => Token is not null;
 
+    public event Action? Changed;
+
     public void SignIn(string email, string token)
     {
         Email = email;
         Token = token;
+        Changed?.Invoke();
     }
 
     public void SignOut()
     {
         Email = null;
         Token = null;
+        Changed?.Invoke();
     }
 }
