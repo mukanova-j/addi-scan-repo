@@ -28,6 +28,14 @@
     <p class="text-success mt-3">@StatusMessage</p>
 }
 
+@if (ExtractedText is not null)
+{
+    <div class="mt-3">
+        <label for="extractedText" class="form-label">Extracted ingredient text</label>
+        <textarea id="extractedText" class="form-control" rows="8" readonly>@ExtractedText</textarea>
+    </div>
+}
+
 @code {
     private const long MaxFileSizeBytes = 10 * 1024 * 1024;
     private static readonly string[] AllowedContentTypes = ["image/jpeg", "image/png", "image/webp"];
@@ -36,6 +44,7 @@
     private bool IsSubmitting { get; set; }
     private string? ErrorMessage { get; set; }
     private string? StatusMessage { get; set; }
+    private string? ExtractedText { get; set; }
 
     private bool CanSubmit => SelectedFile is not null && !IsSubmitting;
 
@@ -43,6 +52,7 @@
     {
         ErrorMessage = null;
         StatusMessage = null;
+        ExtractedText = null;
         SelectedFile = null;
 
         var file = e.File;
@@ -74,15 +84,21 @@
         IsSubmitting = true;
         ErrorMessage = null;
         StatusMessage = null;
+        ExtractedText = null;
 
         try
         {
             await using var stream = SelectedFile.OpenReadStream(maxAllowedSize: MaxFileSizeBytes);
             var result = await Api.UploadScanImageAsync(stream, SelectedFile.Name, SelectedFile.ContentType);
 
-            if (result.Accepted)
+            if (result.Accepted && result.ExtractedText is not null)
             {
-                StatusMessage = $"Upload accepted ({result.DetectedFormat}). OCR processing is not implemented yet.";
+                StatusMessage = $"Upload accepted ({result.DetectedFormat}).";
+                ExtractedText = result.ExtractedText;
+            }
+            else if (result.Accepted)
+            {
+                ErrorMessage = result.Message ?? "Text extraction failed.";
             }
             else
             {

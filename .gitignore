@@ -65,3 +65,4 @@ Claude.md
 /AddiScan.Api/addiscan.db
 /AddiScan.Api/addiscan.db-shm
 /AddiScan.Api/addiscan.db-wal
+/AddiScan.Api/tessdata/eng.traineddata

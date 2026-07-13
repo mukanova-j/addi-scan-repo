@@ -11,7 +11,7 @@ public record AuthResponse(string Token);
 
 public record ApiResult(bool Success, string? Token, string? Error);
 
-public record ScanUploadResponse(bool Accepted, string? Message, string? DetectedFormat);
+public record ScanUploadResponse(bool Accepted, string? Message, string? DetectedFormat, string? ExtractedText);
 
 public record AdditiveSummary(int Id, string? ENumber, string Name, bool Graded, decimal? FinalScore, string? RiskBand);
 
@@ -89,17 +89,17 @@ public class AddiScanApiClient(HttpClient httpClient)
 
         if (response.StatusCode is HttpStatusCode.TooManyRequests)
         {
-            return new ScanUploadResponse(false, "Too many upload attempts. Please wait a minute and try again.", null);
+            return new ScanUploadResponse(false, "Too many upload attempts. Please wait a minute and try again.", null, null);
         }
 
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync(cancellationToken);
-            return new ScanUploadResponse(false, string.IsNullOrWhiteSpace(error) ? response.ReasonPhrase : error, null);
+            return new ScanUploadResponse(false, string.IsNullOrWhiteSpace(error) ? response.ReasonPhrase : error, null, null);
         }
 
         var body = await response.Content.ReadFromJsonAsync<ScanUploadResponse>(cancellationToken: cancellationToken);
-        return body ?? new ScanUploadResponse(false, "Unexpected empty response from server.", null);
+        return body ?? new ScanUploadResponse(false, "Unexpected empty response from server.", null, null);
     }
 
     private static async Task<ApiResult> ToResultAsync(HttpResponseMessage response)
