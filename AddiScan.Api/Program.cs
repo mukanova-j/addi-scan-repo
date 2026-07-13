@@ -1,5 +1,6 @@
 using System.Text;
 using System.Threading.RateLimiting;
+using AddiScan.Api.Ocr;
 using AddiScan.Core.Auth;
 using AddiScan.Infrastructure.Persistence;
 using AddiScan.Infrastructure.Persistence.Seed;
@@ -20,6 +21,7 @@ builder.Services.AddDbContext<AddiScanDbContext>(options =>
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
+builder.Services.AddSingleton<ITextExtractionService, TesseractTextExtractionService>();
 builder.Services.AddScoped<AdditiveDataSeeder>();
 
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
