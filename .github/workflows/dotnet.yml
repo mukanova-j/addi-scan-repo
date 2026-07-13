@@ -1,0 +1,28 @@
+name: .NET
+
+on:
+  push:
+    branches: [main, improvements]
+  pull_request:
+    branches: [main, improvements]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore AddiScan.slnx
+
+      - name: Build
+        run: dotnet build AddiScan.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test AddiScan.slnx --no-build --configuration Release --verbosity normal
