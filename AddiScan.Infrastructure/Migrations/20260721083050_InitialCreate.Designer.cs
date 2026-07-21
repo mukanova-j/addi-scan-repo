@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AddiScan.Infrastructure.Migrations
 {
     [DbContext(typeof(AddiScanDbContext))]
-    [Migration("20260711183136_InitialCreate")]
+    [Migration("20260721083050_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
