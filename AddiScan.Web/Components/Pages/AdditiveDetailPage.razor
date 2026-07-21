@@ -11,12 +11,12 @@
 }
 else if (Additive is null)
 {
-    <p>Additive not found. <a href="/additives">Back to the additive list.</a></p>
+    <p>Additive not found. <a href="@BackUrl">@BackLabel.</a></p>
 }
 else
 {
     <h1>@Additive.Name @(Additive.ENumber is not null ? $"({Additive.ENumber})" : "")</h1>
-    <p><a href="/additives">Back to the additive list</a></p>
+    <p><a href="@BackUrl">@BackLabel</a></p>
 
     <dl class="row">
         <dt class="col-sm-3">Purpose</dt>
@@ -85,8 +85,17 @@ else
     [Parameter]
     public int Id { get; set; }
 
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "returnLabel")]
+    public string? ReturnLabel { get; set; }
+
     private AdditiveDetail? Additive { get; set; }
     private bool Loaded { get; set; }
+
+    private string BackUrl => string.IsNullOrWhiteSpace(ReturnUrl) ? "/additives" : ReturnUrl;
+    private string BackLabel => string.IsNullOrWhiteSpace(ReturnLabel) ? "Back to the additive list" : ReturnLabel;
 
     protected override async Task OnInitializedAsync()
     {

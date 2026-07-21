@@ -31,7 +31,7 @@ else
                 <p class="text-truncate">@item.ExtractedText</p>
                 <details>
                     <summary>Detected additives (@item.Detected.Count)</summary>
-                    <DetectedAdditivesList Detected="item.Detected" OverallRiskBand="@item.OverallRiskBand" WorstAdditiveName="@item.WorstAdditiveName" />
+                    <DetectedAdditivesList Detected="item.Detected" OverallRiskBand="@item.OverallRiskBand" WorstAdditiveName="@item.WorstAdditiveName" ReturnUrl="/history" ReturnLabel="Back to scan history" />
                 </details>
             </div>
         </div>
