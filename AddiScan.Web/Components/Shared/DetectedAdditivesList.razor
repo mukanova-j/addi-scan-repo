@@ -19,7 +19,7 @@ else
         @foreach (var additive in Detected)
         {
             <li class="list-group-item">
-                <strong>@additive.Name</strong>
+                <strong><a href="@AdditiveDetailUrl(additive.Id)">@additive.Name</a></strong>
                 @if (additive.ENumber is not null)
                 {
                     <span>(@additive.ENumber)</span>
@@ -42,4 +42,25 @@ else
     [Parameter, EditorRequired] public List<DetectedAdditive> Detected { get; set; } = [];
     [Parameter] public string? OverallRiskBand { get; set; }
     [Parameter] public string? WorstAdditiveName { get; set; }
+
+    // Lets the caller (e.g. scan history vs. a fresh scan) control where the
+    // additive detail page's "back" link returns to.
+    [Parameter] public string? ReturnUrl { get; set; }
+    [Parameter] public string? ReturnLabel { get; set; }
+
+    private string AdditiveDetailUrl(int additiveId)
+    {
+        if (string.IsNullOrWhiteSpace(ReturnUrl))
+        {
+            return $"/additives/{additiveId}";
+        }
+
+        var query = $"returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+        if (!string.IsNullOrWhiteSpace(ReturnLabel))
+        {
+            query += $"&returnLabel={Uri.EscapeDataString(ReturnLabel)}";
+        }
+
+        return $"/additives/{additiveId}?{query}";
+    }
 }
