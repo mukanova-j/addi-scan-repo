@@ -53,7 +53,8 @@ else
     {
         <p>
             <strong>Final score:</strong> @grading.FinalScore?.ToString("0.0") / 5.0
-            (@grading.RawPoints raw points) &mdash; <strong>@RiskBandLabel(grading.RiskBand)</strong>
+            (@grading.RawPoints raw points) &mdash;
+            <span class="badge @RiskBandStyle.CssClass(grading.RiskBand)">@RiskBandStyle.Label(grading.RiskBand)</span>
         </p>
 
         <table class="table table-bordered">
@@ -102,11 +103,4 @@ else
         Additive = await Api.GetAdditiveAsync(Id);
         Loaded = true;
     }
-
-    private static string RiskBandLabel(string? riskBand) => riskBand switch
-    {
-        "LowRisk" => "Low risk",
-        "HighRisk" => "High risk",
-        _ => riskBand ?? "-",
-    };
 }

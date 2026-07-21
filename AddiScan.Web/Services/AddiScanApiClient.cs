@@ -11,9 +11,15 @@ public record AuthResponse(string Token);
 
 public record ApiResult(bool Success, string? Token, string? Error);
 
-public record ScanUploadResponse(bool Accepted, string? Message, string? DetectedFormat, string? ExtractedText);
-
-public record AnalyzeTextRequest(string Text);
+public record ScanUploadResponse(
+    bool Accepted,
+    string? Message,
+    string? DetectedFormat,
+    string? ExtractedText,
+    Guid? ScanId,
+    List<DetectedAdditive> Detected,
+    string? OverallRiskBand,
+    string? WorstAdditiveName);
 
 public record DetectedAdditive(
     int Id,
@@ -24,12 +30,19 @@ public record DetectedAdditive(
     decimal? FinalScore,
     string? RiskBand);
 
-public record ScanAnalysisResult(List<DetectedAdditive> Detected, string? OverallRiskBand, string? WorstAdditiveName);
-
 public record ScanHistoryItem(
     Guid Id,
     DateTime ScannedAt,
     string ExtractedText,
+    List<DetectedAdditive> Detected,
+    string? OverallRiskBand,
+    string? WorstAdditiveName);
+
+public record ScanDetailResponse(
+    Guid Id,
+    DateTime ScannedAt,
+    string ExtractedText,
+    bool HasPhoto,
     List<DetectedAdditive> Detected,
     string? OverallRiskBand,
     string? WorstAdditiveName);
@@ -116,49 +129,22 @@ public class AddiScanApiClient(HttpClient httpClient, AuthState authState)
 
         if (response.StatusCode is HttpStatusCode.TooManyRequests)
         {
-            return new ScanUploadResponse(false, "Too many upload attempts. Please wait a minute and try again.", null, null);
+            return new ScanUploadResponse(false, "Too many upload attempts. Please wait a minute and try again.", null, null, null, [], null, null);
         }
 
         if (response.StatusCode is HttpStatusCode.Unauthorized)
         {
-            return new ScanUploadResponse(false, "You must be logged in to scan a label.", null, null);
+            return new ScanUploadResponse(false, "You must be logged in to scan a label.", null, null, null, [], null, null);
         }
 
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync(cancellationToken);
-            return new ScanUploadResponse(false, string.IsNullOrWhiteSpace(error) ? response.ReasonPhrase : error, null, null);
+            return new ScanUploadResponse(false, string.IsNullOrWhiteSpace(error) ? response.ReasonPhrase : error, null, null, null, [], null, null);
         }
 
         var body = await response.Content.ReadFromJsonAsync<ScanUploadResponse>(cancellationToken: cancellationToken);
-        return body ?? new ScanUploadResponse(false, "Unexpected empty response from server.", null, null);
-    }
-
-    public async Task<ScanAnalysisResult> AnalyzeTextAsync(string text, CancellationToken cancellationToken = default)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "api/scan/analyze")
-        {
-            Content = JsonContent.Create(new AnalyzeTextRequest(text)),
-        };
-        if (authState.Token is not null)
-        {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authState.Token);
-        }
-
-        var response = await httpClient.SendAsync(request, cancellationToken);
-
-        if (response.StatusCode is HttpStatusCode.Unauthorized)
-        {
-            return new ScanAnalysisResult([], null, null);
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            return new ScanAnalysisResult([], null, null);
-        }
-
-        var body = await response.Content.ReadFromJsonAsync<ScanAnalysisResult>(cancellationToken: cancellationToken);
-        return body ?? new ScanAnalysisResult([], null, null);
+        return body ?? new ScanUploadResponse(false, "Unexpected empty response from server.", null, null, null, [], null, null);
     }
 
     public async Task<List<ScanHistoryItem>> GetScanHistoryAsync(CancellationToken cancellationToken = default)
@@ -176,6 +162,47 @@ public class AddiScanApiClient(HttpClient httpClient, AuthState authState)
         }
 
         return await response.Content.ReadFromJsonAsync<List<ScanHistoryItem>>(cancellationToken: cancellationToken) ?? [];
+    }
+
+    public async Task<ScanDetailResponse?> GetScanAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/scan/{id}");
+        if (authState.Token is not null)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authState.Token);
+        }
+
+        var response = await httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode is HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        return await response.Content.ReadFromJsonAsync<ScanDetailResponse>(cancellationToken: cancellationToken);
+    }
+
+    public async Task<(byte[] Bytes, string ContentType)?> GetScanPhotoAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/scan/{id}/photo");
+        if (authState.Token is not null)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authState.Token);
+        }
+
+        var response = await httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+        var contentType = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
+        return (bytes, contentType);
     }
 
     private static async Task<ApiResult> ToResultAsync(HttpResponseMessage response)

@@ -8,7 +8,11 @@ else
 {
     @if (OverallRiskBand is not null)
     {
-        <p><strong>Overall risk: @OverallRiskBand</strong> (driven by @WorstAdditiveName)</p>
+        <p>
+            <strong>Overall risk:</strong>
+            <span class="badge @RiskBandStyle.CssClass(OverallRiskBand)">@RiskBandStyle.Label(OverallRiskBand)</span>
+            (driven by @WorstAdditiveName)
+        </p>
     }
     else
     {
@@ -27,11 +31,11 @@ else
                 —
                 @if (additive.Graded)
                 {
-                    <span>@additive.RiskBand (@additive.FinalScore)</span>
+                    <span class="badge @RiskBandStyle.CssClass(additive.RiskBand)">@RiskBandStyle.Label(additive.RiskBand) (@additive.FinalScore)</span>
                 }
                 else
                 {
-                    <span>not yet graded</span>
+                    <span class="badge bg-secondary">Not yet graded</span>
                 }
             </li>
         }

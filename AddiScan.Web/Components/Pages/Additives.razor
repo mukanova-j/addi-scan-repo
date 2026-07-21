@@ -35,7 +35,7 @@ else
                     <td>
                         @if (additive.Graded)
                         {
-                            <span class="badge @RiskBandCssClass(additive.RiskBand)">@RiskBandLabel(additive.RiskBand)</span>
+                            <span class="badge @RiskBandStyle.CssClass(additive.RiskBand)">@RiskBandStyle.Label(additive.RiskBand)</span>
                         }
                         else
                         {
@@ -65,21 +65,4 @@ else
     {
         AllAdditives = await Api.GetAdditivesAsync();
     }
-
-    private static string RiskBandCssClass(string? riskBand) => riskBand switch
-    {
-        "Safe" => "bg-success",
-        "LowRisk" => "bg-info text-dark",
-        "Moderate" => "bg-warning text-dark",
-        "HighRisk" => "bg-danger",
-        "Avoid" => "bg-dark",
-        _ => "bg-secondary",
-    };
-
-    private static string RiskBandLabel(string? riskBand) => riskBand switch
-    {
-        "LowRisk" => "Low risk",
-        "HighRisk" => "High risk",
-        _ => riskBand ?? "-",
-    };
 }

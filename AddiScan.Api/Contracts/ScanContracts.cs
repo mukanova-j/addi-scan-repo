@@ -6,13 +6,27 @@ namespace AddiScan.Api.Contracts;
 /// Response for a label image upload. Accepted reflects whether the upload passed type/size/
 /// signature validation. Message carries a rejection reason when Accepted is false, or an OCR
 /// failure reason when Accepted is true but text extraction did not succeed. ExtractedText holds
-/// the OCR result once validation and extraction both succeed.
+/// the OCR result once validation and extraction both succeed, at which point the scan is also
+/// persisted to history (with the photo) and ScanId/Detected/OverallRiskBand/WorstAdditiveName
+/// are populated so the caller can jump straight to that scan's detail page.
 /// </summary>
 /// <param name="Accepted"></param>
 /// <param name="Message"></param>
 /// <param name="DetectedFormat"></param>
 /// <param name="ExtractedText"></param>
-public record ImageUploadResponse(bool Accepted, string? Message, string? DetectedFormat, string? ExtractedText);
+/// <param name="ScanId"></param>
+/// <param name="Detected"></param>
+/// <param name="OverallRiskBand"></param>
+/// <param name="WorstAdditiveName"></param>
+public record ImageUploadResponse(
+    bool Accepted,
+    string? Message,
+    string? DetectedFormat,
+    string? ExtractedText,
+    Guid? ScanId,
+    List<DetectedAdditiveResponse> Detected,
+    string? OverallRiskBand,
+    string? WorstAdditiveName);
 
 /// <summary>
 /// Request to detect additives in ingredient text, typically the ExtractedText from an upload.
@@ -91,6 +105,38 @@ public record ScanHistoryItemResponse(
         id,
         scannedAt,
         text,
+        result.Matches.Select(DetectedAdditiveResponse.FromMatch).ToList(),
+        result.OverallRiskBand?.ToString(),
+        result.WorstMatch?.Additive.Name);
+}
+
+/// <summary>
+/// Full detail for a single scan, scoped to its owning user. HasPhoto tells the caller
+/// whether it's worth calling the photo endpoint at all. Detected/OverallRiskBand/
+/// WorstAdditiveName are recomputed live from the current Additives table, same as history.
+/// </summary>
+/// <param name="Id"></param>
+/// <param name="ScannedAt"></param>
+/// <param name="ExtractedText"></param>
+/// <param name="HasPhoto"></param>
+/// <param name="Detected"></param>
+/// <param name="OverallRiskBand"></param>
+/// <param name="WorstAdditiveName"></param>
+public record ScanDetailResponse(
+    Guid Id,
+    DateTime ScannedAt,
+    string ExtractedText,
+    bool HasPhoto,
+    List<DetectedAdditiveResponse> Detected,
+    string? OverallRiskBand,
+    string? WorstAdditiveName)
+{
+    public static ScanDetailResponse FromRecord(
+        Guid id, DateTime scannedAt, string text, bool hasPhoto, AdditiveDetectionResult result) => new(
+        id,
+        scannedAt,
+        text,
+        hasPhoto,
         result.Matches.Select(DetectedAdditiveResponse.FromMatch).ToList(),
         result.OverallRiskBand?.ToString(),
         result.WorstMatch?.Additive.Name);
