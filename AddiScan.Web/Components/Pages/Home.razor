@@ -45,6 +45,51 @@ else
             <textarea id="extractedText" class="form-control" rows="8" readonly>@ExtractedText</textarea>
         </div>
     }
+
+    @if (Analysis is not null)
+    {
+        <div class="mt-3">
+            <h2 class="h5">Detected additives</h2>
+
+            @if (Analysis.Detected.Count == 0)
+            {
+                <p>No additives detected in the extracted text.</p>
+            }
+            else
+            {
+                @if (Analysis.OverallRiskBand is not null)
+                {
+                    <p><strong>Overall risk: @Analysis.OverallRiskBand</strong> (driven by @Analysis.WorstAdditiveName)</p>
+                }
+                else
+                {
+                    <p>None of the detected additives have a safety grade yet.</p>
+                }
+
+                <ul class="list-group">
+                    @foreach (var additive in Analysis.Detected)
+                    {
+                        <li class="list-group-item">
+                            <strong>@additive.Name</strong>
+                            @if (additive.ENumber is not null)
+                            {
+                                <span>(@additive.ENumber)</span>
+                            }
+                            —
+                            @if (additive.Graded)
+                            {
+                                <span>@additive.RiskBand (@additive.FinalScore)</span>
+                            }
+                            else
+                            {
+                                <span>not yet graded</span>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    }
 }
 
 @code {
@@ -56,6 +101,7 @@ else
     private string? ErrorMessage { get; set; }
     private string? StatusMessage { get; set; }
     private string? ExtractedText { get; set; }
+    private ScanAnalysisResult? Analysis { get; set; }
 
     private bool CanSubmit => SelectedFile is not null && !IsSubmitting;
 
@@ -75,6 +121,7 @@ else
         StatusMessage = null;
         ExtractedText = null;
         SelectedFile = null;
+        Analysis = null;
 
         var file = e.File;
 
@@ -106,6 +153,7 @@ else
         ErrorMessage = null;
         StatusMessage = null;
         ExtractedText = null;
+        Analysis = null;
 
         try
         {
@@ -116,6 +164,7 @@ else
             {
                 StatusMessage = $"Upload accepted ({result.DetectedFormat}).";
                 ExtractedText = result.ExtractedText;
+                Analysis = await Api.AnalyzeTextAsync(result.ExtractedText);
             }
             else if (result.Accepted)
             {

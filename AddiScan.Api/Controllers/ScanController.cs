@@ -1,16 +1,19 @@
 using AddiScan.Api.Contracts;
 using AddiScan.Api.Ocr;
+using AddiScan.Core.Detection;
 using AddiScan.Core.Uploads;
+using AddiScan.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 
 namespace AddiScan.Api.Controllers;
 
 [ApiController]
 [Route("api/scan")]
 [Authorize]
-public class ScanController(ITextExtractionService textExtractionService) : ControllerBase
+public class ScanController(ITextExtractionService textExtractionService, AddiScanDbContext dbContext) : ControllerBase
 {
     private const int SignatureHeaderLength = 12;
 
@@ -53,6 +56,27 @@ public class ScanController(ITextExtractionService textExtractionService) : Cont
             ocrResult.Success ? null : ocrResult.Error,
             result.Format.ToString(),
             ocrResult.Text));
+    }
+
+    /// <summary>
+    /// Detects additives in ingredient text (typically the ExtractedText from an upload) and
+    /// returns each match's existing safety grading, plus the worst risk band among matches
+    /// that are graded. Not rate-limited like upload: this is a cheap in-memory text match,
+    /// not an expensive OCR pass, so re-analyzing edited text shouldn't be throttled.
+    /// </summary>
+    [HttpPost("analyze")]
+    public async Task<ActionResult<ScanAnalysisResponse>> Analyze(
+        [FromBody] AnalyzeTextRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Text))
+        {
+            return BadRequest("No text was provided.");
+        }
+
+        var additives = await dbContext.Additives.ToListAsync(cancellationToken);
+        var result = AdditiveDetector.Detect(request.Text, additives);
+
+        return Ok(ScanAnalysisResponse.FromResult(result));
     }
 
     private static string DescribeRejection(ImageUploadRejectionReason reason) => reason switch
