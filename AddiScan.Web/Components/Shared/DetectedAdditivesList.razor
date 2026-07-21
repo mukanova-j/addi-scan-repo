@@ -1,0 +1,45 @@
+@using AddiScan.Web.Services
+
+@if (Detected.Count == 0)
+{
+    <p>No additives detected in the extracted text.</p>
+}
+else
+{
+    @if (OverallRiskBand is not null)
+    {
+        <p><strong>Overall risk: @OverallRiskBand</strong> (driven by @WorstAdditiveName)</p>
+    }
+    else
+    {
+        <p>None of the detected additives have a safety grade yet.</p>
+    }
+
+    <ul class="list-group">
+        @foreach (var additive in Detected)
+        {
+            <li class="list-group-item">
+                <strong>@additive.Name</strong>
+                @if (additive.ENumber is not null)
+                {
+                    <span>(@additive.ENumber)</span>
+                }
+                —
+                @if (additive.Graded)
+                {
+                    <span>@additive.RiskBand (@additive.FinalScore)</span>
+                }
+                else
+                {
+                    <span>not yet graded</span>
+                }
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    [Parameter, EditorRequired] public List<DetectedAdditive> Detected { get; set; } = [];
+    [Parameter] public string? OverallRiskBand { get; set; }
+    [Parameter] public string? WorstAdditiveName { get; set; }
+}

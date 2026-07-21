@@ -66,3 +66,32 @@ public record ScanAnalysisResponse(
         result.OverallRiskBand?.ToString(),
         result.WorstMatch?.Additive.Name);
 }
+
+/// <summary>
+/// One entry in a user's scan history. Detected/OverallRiskBand/WorstAdditiveName are
+/// recomputed live from the current Additives table when history is read, not frozen at
+/// scan time, so a later re-grade of an additive is reflected retroactively.
+/// </summary>
+/// <param name="Id"></param>
+/// <param name="ScannedAt"></param>
+/// <param name="ExtractedText"></param>
+/// <param name="Detected"></param>
+/// <param name="OverallRiskBand"></param>
+/// <param name="WorstAdditiveName"></param>
+public record ScanHistoryItemResponse(
+    Guid Id,
+    DateTime ScannedAt,
+    string ExtractedText,
+    List<DetectedAdditiveResponse> Detected,
+    string? OverallRiskBand,
+    string? WorstAdditiveName)
+{
+    public static ScanHistoryItemResponse FromRecord(
+        Guid id, DateTime scannedAt, string text, AdditiveDetectionResult result) => new(
+        id,
+        scannedAt,
+        text,
+        result.Matches.Select(DetectedAdditiveResponse.FromMatch).ToList(),
+        result.OverallRiskBand?.ToString(),
+        result.WorstMatch?.Additive.Name);
+}

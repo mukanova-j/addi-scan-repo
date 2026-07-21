@@ -131,4 +131,34 @@ public class AdditiveDetectorTests
         Assert.Null(result.OverallRiskBand);
         Assert.Null(result.WorstMatch);
     }
+
+    [Fact]
+    public void PickWorst_ReturnsHighestSeverityGradedMatch()
+    {
+        var moderate = new AdditiveMatch(MakeAdditive(1, "Sodium Benzoate", riskBand: RiskBand.Moderate, finalScore: 2.4m), "Sodium Benzoate", MatchKind.Name);
+        var highRisk = new AdditiveMatch(MakeAdditive(2, "Tartrazine", riskBand: RiskBand.HighRisk, finalScore: 3.6m), "Tartrazine", MatchKind.Name);
+
+        var worst = AdditiveDetector.PickWorst([moderate, highRisk]);
+
+        Assert.Equal("Tartrazine", worst?.Additive.Name);
+    }
+
+    [Fact]
+    public void PickWorst_ReturnsNullWhenNoneAreGraded()
+    {
+        var ungraded = new AdditiveMatch(MakeAdditive(1, "Anthrapen", riskBand: null), "Anthrapen", MatchKind.Name);
+
+        Assert.Null(AdditiveDetector.PickWorst([ungraded]));
+    }
+
+    [Fact]
+    public void PickWorst_BreaksSeverityTiesByFinalScoreThenId()
+    {
+        var a = new AdditiveMatch(MakeAdditive(2, "A", riskBand: RiskBand.HighRisk, finalScore: 3.2m), "A", MatchKind.Name);
+        var b = new AdditiveMatch(MakeAdditive(1, "B", riskBand: RiskBand.HighRisk, finalScore: 3.9m), "B", MatchKind.Name);
+
+        var worst = AdditiveDetector.PickWorst([a, b]);
+
+        Assert.Equal("B", worst?.Additive.Name);
+    }
 }

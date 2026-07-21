@@ -70,17 +70,25 @@ public static class AdditiveDetector
         }
 
         var orderedMatches = matches.Values.OrderBy(m => m.Additive.Id).ToList();
-        // RiskBand's declaration order (Safe..Avoid) is already severity order, so casting to
-        // int ranks it directly. Never picks from ungraded matches. No verdict without evidence.
-        var worst = orderedMatches
-            .Where(m => m.Additive.Grading is { Graded: true, RiskBand: not null })
-            .OrderByDescending(m => (int)m.Additive.Grading!.RiskBand!.Value)
-            .ThenByDescending(m => m.Additive.Grading!.FinalScore)
-            .ThenBy(m => m.Additive.Id)
-            .FirstOrDefault();
+        var worst = PickWorst(orderedMatches);
 
         return new AdditiveDetectionResult(orderedMatches, worst?.Additive.Grading!.RiskBand, worst);
     }
+
+    /// <summary>
+    /// Picks the highest-severity graded match among the given matches, using RiskBand's
+    /// ascending declaration order (Safe..Avoid) as severity rank, then final score, then
+    /// additive id as a stable tiebreaker. Returns null if none of the matches are graded.
+    /// Never picks from ungraded matches — no verdict without evidence. Shared by both the
+    /// live analyze path and the scan-history read path so risk-band ranking logic lives in
+    /// one place.
+    /// </summary>
+    public static AdditiveMatch? PickWorst(IEnumerable<AdditiveMatch> matches) => matches
+        .Where(m => m.Additive.Grading is { Graded: true, RiskBand: not null })
+        .OrderByDescending(m => (int)m.Additive.Grading!.RiskBand!.Value)
+        .ThenByDescending(m => m.Additive.Grading!.FinalScore)
+        .ThenBy(m => m.Additive.Id)
+        .FirstOrDefault();
 
     private static AdditiveMatch? FindNameOrSynonymMatch(Additive additive, string haystack)
     {

@@ -1,0 +1,63 @@
+@page "/history"
+@rendermode InteractiveServer
+@implements IDisposable
+@using AddiScan.Web.Services
+@inject AddiScanApiClient Api
+@inject AuthState AuthState
+
+<PageTitle>Scan History</PageTitle>
+
+<h1>Scan history</h1>
+
+@if (!AuthState.IsAuthenticated)
+{
+    <p><a href="login">Log in</a> to see your scan history.</p>
+}
+else if (History is null)
+{
+    <p>Loading…</p>
+}
+else if (History.Count == 0)
+{
+    <p>You haven't scanned any labels yet.</p>
+}
+else
+{
+    @foreach (var item in History)
+    {
+        <div class="card mb-3">
+            <div class="card-header">@item.ScannedAt.ToLocalTime().ToString("g")</div>
+            <div class="card-body">
+                <p class="text-truncate">@item.ExtractedText</p>
+                <details>
+                    <summary>Detected additives (@item.Detected.Count)</summary>
+                    <DetectedAdditivesList Detected="item.Detected" OverallRiskBand="@item.OverallRiskBand" WorstAdditiveName="@item.WorstAdditiveName" />
+                </details>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<ScanHistoryItem>? History { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthState.Changed += OnAuthChanged;
+        if (AuthState.IsAuthenticated)
+        {
+            History = await Api.GetScanHistoryAsync();
+        }
+    }
+
+    private async void OnAuthChanged()
+    {
+        History = AuthState.IsAuthenticated ? await Api.GetScanHistoryAsync() : null;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        AuthState.Changed -= OnAuthChanged;
+    }
+}

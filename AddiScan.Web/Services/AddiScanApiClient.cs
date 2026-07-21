@@ -26,6 +26,14 @@ public record DetectedAdditive(
 
 public record ScanAnalysisResult(List<DetectedAdditive> Detected, string? OverallRiskBand, string? WorstAdditiveName);
 
+public record ScanHistoryItem(
+    Guid Id,
+    DateTime ScannedAt,
+    string ExtractedText,
+    List<DetectedAdditive> Detected,
+    string? OverallRiskBand,
+    string? WorstAdditiveName);
+
 public record AdditiveSummary(int Id, string? ENumber, string Name, bool Graded, decimal? FinalScore, string? RiskBand);
 
 public record CriterionScore(int? Score, string? Note);
@@ -151,6 +159,23 @@ public class AddiScanApiClient(HttpClient httpClient, AuthState authState)
 
         var body = await response.Content.ReadFromJsonAsync<ScanAnalysisResult>(cancellationToken: cancellationToken);
         return body ?? new ScanAnalysisResult([], null, null);
+    }
+
+    public async Task<List<ScanHistoryItem>> GetScanHistoryAsync(CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "api/scan/history");
+        if (authState.Token is not null)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authState.Token);
+        }
+
+        var response = await httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            return [];
+        }
+
+        return await response.Content.ReadFromJsonAsync<List<ScanHistoryItem>>(cancellationToken: cancellationToken) ?? [];
     }
 
     private static async Task<ApiResult> ToResultAsync(HttpResponseMessage response)
