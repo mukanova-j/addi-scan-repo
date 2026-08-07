@@ -1,4 +1,5 @@
 @using AddiScan.Web.Services
+@inject AddiScanApiClient Api
 
 @if (Detected.Count == 0)
 {
@@ -19,27 +20,86 @@ else
         <p>None of the detected additives have a safety grade yet.</p>
     }
 
-    <ul class="list-group">
+    <div class="list-group">
         @foreach (var additive in Detected)
         {
-            <li class="list-group-item">
-                <strong><a href="@AdditiveDetailUrl(additive.Id)">@additive.Name</a></strong>
-                @if (additive.ENumber is not null)
+            var isOpen = ExpandedIds.Contains(additive.Id);
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center" role="button" @onclick="() => ToggleAsync(additive.Id)">
+                    <div>
+                        <strong>@additive.Name</strong>
+                        @if (additive.ENumber is not null)
+                        {
+                            <span>(@additive.ENumber)</span>
+                        }
+                        —
+                        @if (additive.Graded)
+                        {
+                            <span class="badge @RiskBandStyle.CssClass(additive.RiskBand)">@RiskBandStyle.Label(additive.RiskBand) (@additive.FinalScore)</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Not yet graded</span>
+                        }
+                    </div>
+                    <span>@(isOpen ? "▲" : "▼")</span>
+                </div>
+
+                @if (isOpen)
                 {
-                    <span>(@additive.ENumber)</span>
+                    <div class="mt-3 pt-3 border-top">
+                        @if (LoadingIds.Contains(additive.Id))
+                        {
+                            <p>Loading…</p>
+                        }
+                        else if (DetailCache.TryGetValue(additive.Id, out var detail) && detail is not null)
+                        {
+                            <dl class="row mb-2">
+                                <dt class="col-sm-3">Purpose</dt>
+                                <dd class="col-sm-9">@(detail.Purpose ?? "-")</dd>
+
+                                <dt class="col-sm-3">Health concerns</dt>
+                                <dd class="col-sm-9">@(detail.HealthConcerns ?? "-")</dd>
+                            </dl>
+
+                            <h6>Score breakdown</h6>
+                            @if (detail.Grading is { Graded: true } grading)
+                            {
+                                <table class="table table-sm table-bordered mb-2">
+                                    <thead>
+                                        <tr>
+                                            <th>Criterion</th>
+                                            <th>Score</th>
+                                            <th>Note</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr><td>Carcinogenicity</td><td>@grading.Carcinogenicity.Score / 4</td><td>@grading.Carcinogenicity.Note</td></tr>
+                                        <tr><td>Ban status</td><td>@grading.BanStatus.Score / 3</td><td>@grading.BanStatus.Note</td></tr>
+                                        <tr><td>Allergic / sensitivity reactions</td><td>@grading.AllergicReactions.Score / 2</td><td>@grading.AllergicReactions.Note</td></tr>
+                                        <tr><td>Cumulative / long-term exposure risk</td><td>@grading.CumulativeRisk.Score / 2</td><td>@grading.CumulativeRisk.Note</td></tr>
+                                        <tr><td>Origin</td><td>@grading.Origin.Score / 1</td><td>@grading.Origin.Note</td></tr>
+                                        <tr><td>Children &amp; vulnerable groups</td><td>@grading.ChildrenAndVulnerable.Score / 2</td><td>@grading.ChildrenAndVulnerable.Note</td></tr>
+                                        <tr><td>Functional necessity</td><td>@grading.FunctionalNecessity.Score (-1..+1)</td><td>@grading.FunctionalNecessity.Note</td></tr>
+                                    </tbody>
+                                </table>
+                            }
+                            else
+                            {
+                                <p>This additive has not been graded yet.</p>
+                            }
+
+                            <a href="@AdditiveDetailUrl(additive.Id)">View full additive details</a>
+                        }
+                        else
+                        {
+                            <p>Could not load additive details.</p>
+                        }
+                    </div>
                 }
-                —
-                @if (additive.Graded)
-                {
-                    <span class="badge @RiskBandStyle.CssClass(additive.RiskBand)">@RiskBandStyle.Label(additive.RiskBand) (@additive.FinalScore)</span>
-                }
-                else
-                {
-                    <span class="badge bg-secondary">Not yet graded</span>
-                }
-            </li>
+            </div>
         }
-    </ul>
+    </div>
 }
 
 @code {
@@ -51,6 +111,29 @@ else
     // additive detail page's "back" link returns to.
     [Parameter] public string? ReturnUrl { get; set; }
     [Parameter] public string? ReturnLabel { get; set; }
+
+    private readonly HashSet<int> ExpandedIds = [];
+    private readonly HashSet<int> LoadingIds = [];
+    private readonly Dictionary<int, AdditiveDetail?> DetailCache = [];
+
+    private async Task ToggleAsync(int additiveId)
+    {
+        if (!ExpandedIds.Add(additiveId))
+        {
+            ExpandedIds.Remove(additiveId);
+            return;
+        }
+
+        if (DetailCache.ContainsKey(additiveId))
+        {
+            return;
+        }
+
+        LoadingIds.Add(additiveId);
+        var detail = await Api.GetAdditiveAsync(additiveId);
+        DetailCache[additiveId] = detail;
+        LoadingIds.Remove(additiveId);
+    }
 
     private string AdditiveDetailUrl(int additiveId)
     {

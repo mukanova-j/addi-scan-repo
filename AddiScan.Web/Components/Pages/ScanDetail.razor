@@ -29,16 +29,17 @@ else
 
     <p><a href="/history">Back to scan history</a></p>
 
-    @if (PhotoDataUri is not null)
-    {
-        <div class="mb-3">
-            <img src="@PhotoDataUri" alt="Uploaded label photo" class="img-fluid" style="max-height: 400px;" />
+    <div class="row mb-3">
+        <div class="col-md-6">
+            @if (PhotoDataUri is not null)
+            {
+                <img src="@PhotoDataUri" alt="Uploaded label photo" class="img-fluid" style="max-height: 400px;" />
+            }
         </div>
-    }
-
-    <div class="mb-3">
-        <label for="extractedText" class="form-label">Extracted ingredient text</label>
-        <textarea id="extractedText" class="form-control" rows="8" readonly>@Scan.ExtractedText</textarea>
+        <div class="col-md-6">
+            <label for="extractedText" class="form-label">Extracted ingredient text</label>
+            <textarea id="extractedText" class="form-control" rows="10" readonly>@Scan.ExtractedText</textarea>
+        </div>
     </div>
 
     <h2 class="h5">Detected additives</h2>
