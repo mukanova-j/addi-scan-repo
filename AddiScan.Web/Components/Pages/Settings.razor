@@ -1,0 +1,71 @@
+@page "/settings"
+@rendermode InteractiveServer
+@using AddiScan.Web.Services
+@inject AddiScanApiClient Api
+@inject AuthState AuthState
+
+<PageTitle>Settings</PageTitle>
+
+@if (!AuthState.IsAuthenticated)
+{
+    <p><a href="login">Log in</a> to change your settings.</p>
+}
+else if (!Loaded)
+{
+    <p>Loading…</p>
+}
+else
+{
+    <h1>Settings</h1>
+
+    <div class="mb-3 form-check">
+        <input type="checkbox" id="ignoreFunctionalNecessity" class="form-check-input" checked="@IgnoreFunctionalNecessity" @onchange="OnToggleAsync" disabled="@IsSaving" />
+        <label for="ignoreFunctionalNecessity" class="form-check-label">
+            Ignore functional necessity when grading additives
+        </label>
+        <div class="form-text">
+            Functional necessity can lower an additive's total score when it serves a safety or
+            preservation purpose. Turn this on to score additives without that discount.
+        </div>
+    </div>
+
+    @if (SavedMessage is not null)
+    {
+        <p class="text-success">@SavedMessage</p>
+    }
+}
+
+@code {
+    private bool Loaded { get; set; }
+    private bool IgnoreFunctionalNecessity { get; set; }
+    private bool IsSaving { get; set; }
+    private string? SavedMessage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            return;
+        }
+
+        var settings = await Api.GetSettingsAsync();
+        IgnoreFunctionalNecessity = settings?.IgnoreFunctionalNecessity ?? false;
+        Loaded = true;
+    }
+
+    private async Task OnToggleAsync(ChangeEventArgs args)
+    {
+        IsSaving = true;
+        SavedMessage = null;
+
+        var value = (bool)(args.Value ?? false);
+        var settings = await Api.UpdateSettingsAsync(value);
+        if (settings is not null)
+        {
+            IgnoreFunctionalNecessity = settings.IgnoreFunctionalNecessity;
+            SavedMessage = "Saved.";
+        }
+
+        IsSaving = false;
+    }
+}

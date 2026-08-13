@@ -49,6 +49,8 @@ public record ScanDetailResponse(
 
 public record AdditiveSummary(int Id, string? ENumber, string Name, bool Graded, decimal? FinalScore, string? RiskBand);
 
+public record UserSettings(bool IgnoreFunctionalNecessity);
+
 public record CriterionScore(int? Score, string? Note);
 
 public record SafetyGradingDetail(
@@ -83,21 +85,35 @@ public record AdditiveDetail(
 
 public class AddiScanApiClient(HttpClient httpClient, AuthState authState)
 {
-    public async Task<List<AdditiveSummary>> GetAdditivesAsync()
+    public async Task<List<AdditiveSummary>> GetAdditivesAsync(CancellationToken cancellationToken = default)
     {
-        return await httpClient.GetFromJsonAsync<List<AdditiveSummary>>("api/additives") ?? [];
+        using var request = new HttpRequestMessage(HttpMethod.Get, "api/additives");
+        if (authState.Token is not null)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authState.Token);
+        }
+
+        var response = await httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<AdditiveSummary>>(cancellationToken: cancellationToken) ?? [];
     }
 
-    public async Task<AdditiveDetail?> GetAdditiveAsync(int id)
+    public async Task<AdditiveDetail?> GetAdditiveAsync(int id, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.GetAsync($"api/additives/{id}");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/additives/{id}");
+        if (authState.Token is not null)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authState.Token);
+        }
+
+        var response = await httpClient.SendAsync(request, cancellationToken);
         if (response.StatusCode is HttpStatusCode.NotFound)
         {
             return null;
         }
 
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<AdditiveDetail>();
+        return await response.Content.ReadFromJsonAsync<AdditiveDetail>(cancellationToken: cancellationToken);
     }
 
     public async Task<ApiResult> RegisterAsync(string email, string password, bool consentGiven)
@@ -203,6 +219,43 @@ public class AddiScanApiClient(HttpClient httpClient, AuthState authState)
         var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
         var contentType = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
         return (bytes, contentType);
+    }
+
+    public async Task<UserSettings?> GetSettingsAsync(CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "api/auth/settings");
+        if (authState.Token is not null)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authState.Token);
+        }
+
+        var response = await httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        return await response.Content.ReadFromJsonAsync<UserSettings>(cancellationToken: cancellationToken);
+    }
+
+    public async Task<UserSettings?> UpdateSettingsAsync(bool ignoreFunctionalNecessity, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, "api/auth/settings")
+        {
+            Content = JsonContent.Create(new UserSettings(ignoreFunctionalNecessity)),
+        };
+        if (authState.Token is not null)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authState.Token);
+        }
+
+        var response = await httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        return await response.Content.ReadFromJsonAsync<UserSettings>(cancellationToken: cancellationToken);
     }
 
     private static async Task<ApiResult> ToResultAsync(HttpResponseMessage response)

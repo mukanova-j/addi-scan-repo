@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using AddiScan.Api.Auth;
 using AddiScan.Api.Contracts;
 using AddiScan.Api.Ocr;
 using AddiScan.Core.Detection;
@@ -61,7 +62,9 @@ public class ScanController(ITextExtractionService textExtractionService, AddiSc
         }
 
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var (record, detection) = await PersistScanAsync(userId, ocrResult.Text, imageBytes, file.ContentType, cancellationToken);
+        var includeFunctionalNecessity = await GradingPreference.IncludeFunctionalNecessityAsync(User, dbContext, cancellationToken);
+        var (record, detection) = await PersistScanAsync(
+            userId, ocrResult.Text, imageBytes, file.ContentType, includeFunctionalNecessity, cancellationToken);
 
         return Ok(new ImageUploadResponse(
             true,
@@ -69,7 +72,7 @@ public class ScanController(ITextExtractionService textExtractionService, AddiSc
             result.Format.ToString(),
             ocrResult.Text,
             record.Id,
-            detection.Matches.Select(DetectedAdditiveResponse.FromMatch).ToList(),
+            detection.Matches.Select(m => DetectedAdditiveResponse.FromMatch(m, includeFunctionalNecessity)).ToList(),
             detection.OverallRiskBand?.ToString(),
             detection.WorstMatch?.Additive.Name));
     }
@@ -91,9 +94,10 @@ public class ScanController(ITextExtractionService textExtractionService, AddiSc
         }
 
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var (_, result) = await PersistScanAsync(userId, request.Text, null, null, cancellationToken);
+        var includeFunctionalNecessity = await GradingPreference.IncludeFunctionalNecessityAsync(User, dbContext, cancellationToken);
+        var (_, result) = await PersistScanAsync(userId, request.Text, null, null, includeFunctionalNecessity, cancellationToken);
 
-        return Ok(ScanAnalysisResponse.FromResult(result));
+        return Ok(ScanAnalysisResponse.FromResult(result, includeFunctionalNecessity));
     }
 
     /// <summary>
@@ -104,6 +108,7 @@ public class ScanController(ITextExtractionService textExtractionService, AddiSc
     public async Task<ActionResult<ScanDetailResponse>> GetScan(Guid id, CancellationToken cancellationToken)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var includeFunctionalNecessity = await GradingPreference.IncludeFunctionalNecessityAsync(User, dbContext, cancellationToken);
 
         var record = await dbContext.ScanRecords
             .FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId, cancellationToken);
@@ -113,9 +118,10 @@ public class ScanController(ITextExtractionService textExtractionService, AddiSc
             return NotFound();
         }
 
-        var result = await DetectAsync(record, cancellationToken);
+        var result = await DetectAsync(record, includeFunctionalNecessity, cancellationToken);
 
-        return Ok(ScanDetailResponse.FromRecord(record.Id, record.ScannedAt, record.ExtractedText, record.PhotoData is not null, result));
+        return Ok(ScanDetailResponse.FromRecord(
+            record.Id, record.ScannedAt, record.ExtractedText, record.PhotoData is not null, result, includeFunctionalNecessity));
     }
 
     /// <summary>
@@ -142,7 +148,8 @@ public class ScanController(ITextExtractionService textExtractionService, AddiSc
     /// Detects additives for an already-persisted scan record by rejoining its stored matches
     /// against the current Additives table, same as GetHistory does per-record.
     /// </summary>
-    private async Task<AdditiveDetectionResult> DetectAsync(ScanRecord record, CancellationToken cancellationToken)
+    private async Task<AdditiveDetectionResult> DetectAsync(
+        ScanRecord record, bool includeFunctionalNecessity, CancellationToken cancellationToken)
     {
         var additiveIds = record.Matches.Select(m => m.AdditiveId).Distinct().ToList();
         var additivesById = await dbContext.Additives
@@ -155,8 +162,9 @@ public class ScanController(ITextExtractionService textExtractionService, AddiSc
             .OrderBy(m => m.Additive.Id)
             .ToList();
 
-        var worst = AdditiveDetector.PickWorst(matches);
-        return new AdditiveDetectionResult(matches, worst?.Additive.Grading?.RiskBand, worst);
+        var worst = AdditiveDetector.PickWorst(matches, includeFunctionalNecessity);
+        var overallRiskBand = worst?.Additive.Grading?.ComputeEffectiveScore(includeFunctionalNecessity)?.RiskBand;
+        return new AdditiveDetectionResult(matches, overallRiskBand, worst);
     }
 
     /// <summary>
@@ -165,10 +173,11 @@ public class ScanController(ITextExtractionService textExtractionService, AddiSc
     /// the detect-then-persist logic lives in one place.
     /// </summary>
     private async Task<(ScanRecord Record, AdditiveDetectionResult Result)> PersistScanAsync(
-        Guid userId, string text, byte[]? photoData, string? photoContentType, CancellationToken cancellationToken)
+        Guid userId, string text, byte[]? photoData, string? photoContentType,
+        bool includeFunctionalNecessity, CancellationToken cancellationToken)
     {
         var additives = await dbContext.Additives.ToListAsync(cancellationToken);
-        var result = AdditiveDetector.Detect(text, additives);
+        var result = AdditiveDetector.Detect(text, additives, includeFunctionalNecessity);
 
         var record = new ScanRecord
         {
@@ -198,6 +207,7 @@ public class ScanController(ITextExtractionService textExtractionService, AddiSc
     public async Task<ActionResult<List<ScanHistoryItemResponse>>> GetHistory(CancellationToken cancellationToken)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var includeFunctionalNecessity = await GradingPreference.IncludeFunctionalNecessityAsync(User, dbContext, cancellationToken);
 
         var records = await dbContext.ScanRecords
             .Where(s => s.UserId == userId)
@@ -217,10 +227,11 @@ public class ScanController(ITextExtractionService textExtractionService, AddiSc
                 .OrderBy(m => m.Additive.Id)
                 .ToList();
 
-            var worst = AdditiveDetector.PickWorst(matches);
-            var result = new AdditiveDetectionResult(matches, worst?.Additive.Grading?.RiskBand, worst);
+            var worst = AdditiveDetector.PickWorst(matches, includeFunctionalNecessity);
+            var overallRiskBand = worst?.Additive.Grading?.ComputeEffectiveScore(includeFunctionalNecessity)?.RiskBand;
+            var result = new AdditiveDetectionResult(matches, overallRiskBand, worst);
 
-            return ScanHistoryItemResponse.FromRecord(record.Id, record.ScannedAt, record.ExtractedText, result);
+            return ScanHistoryItemResponse.FromRecord(record.Id, record.ScannedAt, record.ExtractedText, result, includeFunctionalNecessity);
         }).ToList();
 
         return Ok(response);

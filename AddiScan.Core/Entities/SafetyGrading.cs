@@ -30,4 +30,28 @@ public class SafetyGrading
 
     public int? FunctionalNecessityScore { get; set; }
     public string? FunctionalNecessityNote { get; set; }
+
+    /// <summary>
+    /// Returns the raw points, final score, and risk band to use, optionally dropping the
+    /// functional necessity modifier baked into the stored <see cref="RawPoints"/> — used to
+    /// honor a user's setting to ignore it. When <paramref name="includeFunctionalNecessity"/>
+    /// is true this just returns the stored values unchanged, since those were computed with
+    /// the modifier applied. Returns null when this additive has not been graded.
+    /// </summary>
+    public (int RawPoints, decimal FinalScore, RiskBand RiskBand)? ComputeEffectiveScore(bool includeFunctionalNecessity)
+    {
+        if (!Graded || RiskBand is not { } riskBand)
+        {
+            return null;
+        }
+
+        if (includeFunctionalNecessity)
+        {
+            return (RawPoints ?? 0, FinalScore ?? 0m, riskBand);
+        }
+
+        var raw = (RawPoints ?? 0) - (FunctionalNecessityScore ?? 0);
+        var clamped = Math.Clamp(raw, 0, GradingCriteria.MaxRaw);
+        return (clamped, clamped, GradingCriteria.BandForScore(clamped));
+    }   
 }

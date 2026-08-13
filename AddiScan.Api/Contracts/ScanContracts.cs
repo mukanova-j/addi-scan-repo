@@ -53,14 +53,18 @@ public record DetectedAdditiveResponse(
     decimal? FinalScore,
     string? RiskBand)
 {
-    public static DetectedAdditiveResponse FromMatch(AdditiveMatch match) => new(
-        match.Additive.Id,
-        match.Additive.ENumber,
-        match.Additive.Name,
-        match.MatchedTerm,
-        match.Additive.Grading?.Graded ?? false,
-        match.Additive.Grading?.FinalScore,
-        match.Additive.Grading?.RiskBand?.ToString());
+    public static DetectedAdditiveResponse FromMatch(AdditiveMatch match, bool includeFunctionalNecessity = true)
+    {
+        var effective = match.Additive.Grading?.ComputeEffectiveScore(includeFunctionalNecessity);
+        return new(
+            match.Additive.Id,
+            match.Additive.ENumber,
+            match.Additive.Name,
+            match.MatchedTerm,
+            match.Additive.Grading?.Graded ?? false,
+            effective?.FinalScore,
+            effective?.RiskBand.ToString());
+    }
 }
 
 /// <summary>
@@ -75,8 +79,8 @@ public record ScanAnalysisResponse(
     string? OverallRiskBand,
     string? WorstAdditiveName)
 {
-    public static ScanAnalysisResponse FromResult(AdditiveDetectionResult result) => new(
-        result.Matches.Select(DetectedAdditiveResponse.FromMatch).ToList(),
+    public static ScanAnalysisResponse FromResult(AdditiveDetectionResult result, bool includeFunctionalNecessity = true) => new(
+        result.Matches.Select(m => DetectedAdditiveResponse.FromMatch(m, includeFunctionalNecessity)).ToList(),
         result.OverallRiskBand?.ToString(),
         result.WorstMatch?.Additive.Name);
 }
@@ -101,11 +105,11 @@ public record ScanHistoryItemResponse(
     string? WorstAdditiveName)
 {
     public static ScanHistoryItemResponse FromRecord(
-        Guid id, DateTime scannedAt, string text, AdditiveDetectionResult result) => new(
+        Guid id, DateTime scannedAt, string text, AdditiveDetectionResult result, bool includeFunctionalNecessity = true) => new(
         id,
         scannedAt,
         text,
-        result.Matches.Select(DetectedAdditiveResponse.FromMatch).ToList(),
+        result.Matches.Select(m => DetectedAdditiveResponse.FromMatch(m, includeFunctionalNecessity)).ToList(),
         result.OverallRiskBand?.ToString(),
         result.WorstMatch?.Additive.Name);
 }
@@ -132,12 +136,12 @@ public record ScanDetailResponse(
     string? WorstAdditiveName)
 {
     public static ScanDetailResponse FromRecord(
-        Guid id, DateTime scannedAt, string text, bool hasPhoto, AdditiveDetectionResult result) => new(
+        Guid id, DateTime scannedAt, string text, bool hasPhoto, AdditiveDetectionResult result, bool includeFunctionalNecessity = true) => new(
         id,
         scannedAt,
         text,
         hasPhoto,
-        result.Matches.Select(DetectedAdditiveResponse.FromMatch).ToList(),
+        result.Matches.Select(m => DetectedAdditiveResponse.FromMatch(m, includeFunctionalNecessity)).ToList(),
         result.OverallRiskBand?.ToString(),
         result.WorstMatch?.Additive.Name);
 }
