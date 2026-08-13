@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using AddiScan.Api.Contracts;
 using AddiScan.Core.Auth;
 using AddiScan.Core.Entities;
 using AddiScan.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -71,5 +73,36 @@ public class AuthController(
         }
 
         return Ok(new AuthResponse(jwtTokenService.IssueToken(user)));
+    }
+
+    /// <summary>
+    /// Returns the caller's grading preferences, such as whether functional necessity is
+    /// dropped from the total when grading additives.
+    /// </summary>
+    [HttpGet("settings")]
+    [Authorize]
+    public async Task<ActionResult<UserSettingsResponse>> GetSettings(CancellationToken cancellationToken)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var user = await dbContext.Users.SingleAsync(u => u.Id == userId, cancellationToken);
+
+        return Ok(new UserSettingsResponse(user.IgnoreFunctionalNecessity));
+    }
+
+    /// <summary>
+    /// Updates the caller's grading preferences.
+    /// </summary>
+    [HttpPut("settings")]
+    [Authorize]
+    public async Task<ActionResult<UserSettingsResponse>> UpdateSettings(
+        UpdateUserSettingsRequest request, CancellationToken cancellationToken)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var user = await dbContext.Users.SingleAsync(u => u.Id == userId, cancellationToken);
+
+        user.IgnoreFunctionalNecessity = request.IgnoreFunctionalNecessity;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return Ok(new UserSettingsResponse(user.IgnoreFunctionalNecessity));
     }
 }

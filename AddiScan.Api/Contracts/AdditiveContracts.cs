@@ -19,13 +19,17 @@ public record AdditiveSummaryResponse(
     decimal? FinalScore,
     string? RiskBand)
 {
-    public static AdditiveSummaryResponse FromEntity(Additive additive) => new(
-        additive.Id,
-        additive.ENumber,
-        additive.Name,
-        additive.Grading?.Graded ?? false,
-        additive.Grading?.FinalScore,
-        additive.Grading?.RiskBand?.ToString());
+    public static AdditiveSummaryResponse FromEntity(Additive additive, bool includeFunctionalNecessity = true)
+    {
+        var effective = additive.Grading?.ComputeEffectiveScore(includeFunctionalNecessity);
+        return new(
+            additive.Id,
+            additive.ENumber,
+            additive.Name,
+            additive.Grading?.Graded ?? false,
+            effective?.FinalScore,
+            effective?.RiskBand.ToString());
+    }
 }
 
 /// <summary>
@@ -62,18 +66,22 @@ public record SafetyGradingResponse(
     CriterionScoreResponse ChildrenAndVulnerable,
     CriterionScoreResponse FunctionalNecessity)
 {
-    public static SafetyGradingResponse FromEntity(SafetyGrading grading) => new(
-        grading.Graded,
-        grading.FinalScore,
-        grading.RawPoints,
-        grading.RiskBand?.ToString(),
-        new CriterionScoreResponse(grading.CarcinogenicityScore, grading.CarcinogenicityNote),
-        new CriterionScoreResponse(grading.BanStatusScore, grading.BanStatusNote),
-        new CriterionScoreResponse(grading.AllergicReactionsScore, grading.AllergicReactionsNote),
-        new CriterionScoreResponse(grading.CumulativeRiskScore, grading.CumulativeRiskNote),
-        new CriterionScoreResponse(grading.OriginScore, grading.OriginNote),
-        new CriterionScoreResponse(grading.ChildrenAndVulnerableScore, grading.ChildrenAndVulnerableNote),
-        new CriterionScoreResponse(grading.FunctionalNecessityScore, grading.FunctionalNecessityNote));
+    public static SafetyGradingResponse FromEntity(SafetyGrading grading, bool includeFunctionalNecessity = true)
+    {
+        var effective = grading.ComputeEffectiveScore(includeFunctionalNecessity);
+        return new(
+            grading.Graded,
+            effective?.FinalScore,
+            effective?.RawPoints,
+            effective?.RiskBand.ToString(),
+            new CriterionScoreResponse(grading.CarcinogenicityScore, grading.CarcinogenicityNote),
+            new CriterionScoreResponse(grading.BanStatusScore, grading.BanStatusNote),
+            new CriterionScoreResponse(grading.AllergicReactionsScore, grading.AllergicReactionsNote),
+            new CriterionScoreResponse(grading.CumulativeRiskScore, grading.CumulativeRiskNote),
+            new CriterionScoreResponse(grading.OriginScore, grading.OriginNote),
+            new CriterionScoreResponse(grading.ChildrenAndVulnerableScore, grading.ChildrenAndVulnerableNote),
+            new CriterionScoreResponse(grading.FunctionalNecessityScore, grading.FunctionalNecessityNote));
+    }
 }
 
 /// <summary>
@@ -111,7 +119,7 @@ public record AdditiveDetailResponse(
     DateOnly? LastResearched,
     SafetyGradingResponse? Grading)
 {
-    public static AdditiveDetailResponse FromEntity(Additive additive) => new(
+    public static AdditiveDetailResponse FromEntity(Additive additive, bool includeFunctionalNecessity = true) => new(
         additive.Id,
         additive.ENumber,
         additive.Name,
@@ -126,5 +134,5 @@ public record AdditiveDetailResponse(
         additive.CommonNamesAndSynonyms,
         additive.EvidenceSources,
         additive.LastResearched,
-        additive.Grading is null ? null : SafetyGradingResponse.FromEntity(additive.Grading));
+        additive.Grading is null ? null : SafetyGradingResponse.FromEntity(additive.Grading, includeFunctionalNecessity));
 }

@@ -25,14 +25,24 @@ else
 {
     @foreach (var item in History)
     {
-        <div class="card mb-3">
-            <div class="card-header">@item.ScannedAt.ToLocalTime().ToString("g")</div>
-            <div class="card-body">
-                <p class="text-truncate">@item.ExtractedText</p>
-                <details>
-                    <summary>Detected additives (@item.Detected.Count)</summary>
-                    <DetectedAdditivesList Detected="item.Detected" OverallRiskBand="@item.OverallRiskBand" WorstAdditiveName="@item.WorstAdditiveName" />
-                </details>
+        <div class="card mb-2 small">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2 py-1 px-2">
+                <span>@item.ScannedAt.ToLocalTime().ToString("g")</span>
+                <a href="@($"/scans/{item.Id}")" class="btn btn-sm btn-outline-primary py-0">View scan details</a>
+            </div>
+            <div class="card-body py-2 px-2">
+                <p class="text-muted mb-1" style="max-width: 100%; white-space: normal; word-break: break-word;">@item.ExtractedText</p>
+                <p class="mb-0">
+                    @if (item.OverallRiskBand is not null)
+                    {
+                        <span>
+                            <strong>Overall risk:</strong>
+                            <span class="badge @RiskBandStyle.CssClass(item.OverallRiskBand)">@RiskBandStyle.Label(item.OverallRiskBand)</span>
+                            (driven by @item.WorstAdditiveName) —
+                        </span>
+                    }
+                    <span>@item.Detected.Count additive(s) detected.</span>
+                </p>
             </div>
         </div>
     }

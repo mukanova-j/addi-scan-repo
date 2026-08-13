@@ -1,0 +1,104 @@
+@page "/scans/{id:guid}"
+@rendermode InteractiveServer
+@implements IDisposable
+@using AddiScan.Web.Services
+@inject AddiScanApiClient Api
+@inject AuthState AuthState
+
+<PageTitle>Scan details</PageTitle>
+
+@if (!AuthState.IsAuthenticated)
+{
+    <p><a href="login">Log in</a> to see this scan.</p>
+}
+else if (Scan is null)
+{
+    @if (Loaded)
+    {
+        <p>This scan could not be found.</p>
+        <p><a href="/history">Back to scan history</a></p>
+    }
+    else
+    {
+        <p>Loading…</p>
+    }
+}
+else
+{
+    <h1>Scan from @Scan.ScannedAt.ToLocalTime().ToString("g")</h1>
+
+    <p><a href="/history">Back to scan history</a></p>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            @if (PhotoDataUri is not null)
+            {
+                <img src="@PhotoDataUri" alt="Uploaded label photo" class="img-fluid" style="max-height: 400px;" />
+            }
+        </div>
+        <div class="col-md-6">
+            <label for="extractedText" class="form-label">Extracted ingredient text</label>
+            <textarea id="extractedText" class="form-control" rows="10" readonly>@Scan.ExtractedText</textarea>
+        </div>
+    </div>
+
+    <h2 class="h5">Detected additives</h2>
+    <DetectedAdditivesList
+        Detected="Scan.Detected"
+        OverallRiskBand="@Scan.OverallRiskBand"
+        WorstAdditiveName="@Scan.WorstAdditiveName"
+        ReturnUrl="@($"/scans/{Id}")"
+        ReturnLabel="Back to scan details" />
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private ScanDetailResponse? Scan { get; set; }
+    private string? PhotoDataUri { get; set; }
+    private bool Loaded { get; set; }
+
+    protected override void OnInitialized()
+    {
+        AuthState.Changed += OnAuthChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            return;
+        }
+
+        Loaded = false;
+        Scan = await Api.GetScanAsync(Id);
+        PhotoDataUri = null;
+
+        if (Scan is { HasPhoto: true })
+        {
+            var photo = await Api.GetScanPhotoAsync(Id);
+            if (photo is not null)
+            {
+                PhotoDataUri = $"data:{photo.Value.ContentType};base64,{Convert.ToBase64String(photo.Value.Bytes)}";
+            }
+        }
+
+        Loaded = true;
+    }
+
+    private async void OnAuthChanged()
+    {
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        AuthState.Changed -= OnAuthChanged;
+    }
+}

@@ -30,7 +30,8 @@ public static class AdditiveDetector
     private static readonly Regex ENumberPattern = new(
         @"\bE[\s-]?(\d{3,4}[a-dA-D]?)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    public static AdditiveDetectionResult Detect(string text, IEnumerable<Additive> candidates)
+    public static AdditiveDetectionResult Detect(
+        string text, IEnumerable<Additive> candidates, bool includeFunctionalNecessity = true)
     {
         var candidateList = candidates as IReadOnlyList<Additive> ?? candidates.ToList();
 
@@ -70,9 +71,12 @@ public static class AdditiveDetector
         }
 
         var orderedMatches = matches.Values.OrderBy(m => m.Additive.Id).ToList();
-        var worst = PickWorst(orderedMatches);
+        var worst = PickWorst(orderedMatches, includeFunctionalNecessity);
+        var overallRiskBand = worst is null
+            ? null
+            : worst.Additive.Grading!.ComputeEffectiveScore(includeFunctionalNecessity)?.RiskBand;
 
-        return new AdditiveDetectionResult(orderedMatches, worst?.Additive.Grading!.RiskBand, worst);
+        return new AdditiveDetectionResult(orderedMatches, overallRiskBand, worst);
     }
 
     /// <summary>
@@ -81,13 +85,16 @@ public static class AdditiveDetector
     /// additive id as a stable tiebreaker. Returns null if none of the matches are graded.
     /// Never picks from ungraded matches — no verdict without evidence. Shared by both the
     /// live analyze path and the scan-history read path so risk-band ranking logic lives in
-    /// one place.
+    /// one place. Ranks by the effective score (see <see cref="SafetyGrading.ComputeEffectiveScore"/>)
+    /// so a user's functional-necessity setting is honored, not just the stored grade.
     /// </summary>
-    public static AdditiveMatch? PickWorst(IEnumerable<AdditiveMatch> matches) => matches
-        .Where(m => m.Additive.Grading is { Graded: true, RiskBand: not null })
-        .OrderByDescending(m => (int)m.Additive.Grading!.RiskBand!.Value)
-        .ThenByDescending(m => m.Additive.Grading!.FinalScore)
-        .ThenBy(m => m.Additive.Id)
+    public static AdditiveMatch? PickWorst(IEnumerable<AdditiveMatch> matches, bool includeFunctionalNecessity = true) => matches
+        .Select(m => (Match: m, Effective: m.Additive.Grading?.ComputeEffectiveScore(includeFunctionalNecessity)))
+        .Where(x => x.Effective is not null)
+        .OrderByDescending(x => (int)x.Effective!.Value.RiskBand)
+        .ThenByDescending(x => x.Effective!.Value.FinalScore)
+        .ThenBy(x => x.Match.Additive.Id)
+        .Select(x => x.Match)
         .FirstOrDefault();
 
     private static AdditiveMatch? FindNameOrSynonymMatch(Additive additive, string haystack)
